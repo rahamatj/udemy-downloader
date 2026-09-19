@@ -187,7 +187,8 @@ async function processCourses(index, courseId, groupList, coursePath) {
     const sections = groupList[groupKey];
 
     // Membuat folder untuk grup
-    const groupPath = path.join(process.cwd(), coursePath, groupKey.replace(/ /g, '_'));
+    const groupFolderName = `${group + 1}_${sanitizeTitle(groupKey).replace(/ /g, '_')}`;
+    const groupPath = path.join(process.cwd(), coursePath, groupFolderName);
     if (!fs.existsSync(groupPath)) {
         fs.mkdirSync(groupPath, { recursive: true });
         console.log(`Folder ${groupKey} berhasil dibuat.`);
@@ -211,14 +212,9 @@ async function processCourses(index, courseId, groupList, coursePath) {
     listRawUrl.forEach(item => {
         if (!qualitys.includes(item.label)) qualitys.push(item.label)
     })
-    
-    let quality = await question(`\n${qualitys.map((quality) => `${qualitys.indexOf(quality) + 1}. ${quality}P`).join('\n')}P\nSelect quality you want to download (e.g., 1): `);
-    quality = qualitys[parseInt(quality) - 1] || qualitys[0]
 
-    const subtitles = gdata.asset.captions
-    let capSub = subtitles.map((sub, idx) => `${idx + 1}. ${sub.video_label}`).join('\n')
-    let subtitle = await question('\n' + capSub + '\n0. None/No Subtitle\n\nEnter the subtitle you want to download (e.g., 1): ')
-    subtitle = !subtitle || subtitle === '0' ? null : subtitles[parseInt(subtitle) - 1]
+    // Pick the highest available quality label automatically
+    const quality = qualitys.slice().sort((a, b) => parseInt(b) - parseInt(a))[0]
 
     if (curri === 0) {
         console.log('Starting Batch Download...')
@@ -230,13 +226,10 @@ async function processCourses(index, courseId, groupList, coursePath) {
                 continue
             }
             
-            let newsub = subtitle ? data.asset.captions.find(sub => sub.locale_id === subtitle.locale_id) : null
             const filePathName = `${i + 1}_${sanitizeTitle(sections[i].title)}`
             const filePath = path.join(groupPath, `${filePathName}.mp4`);
-            const vttPath = path.join(groupPath, `${filePathName}.vtt`);
             if (fs.existsSync(filePath)) continue
 
-            if (newsub) await downloadSubtitle(newsub.url, vttPath);
             await downloadCourse(data, filePath, quality);
             console.log(`\n${sections[i].title} Successfully Downloaded.`);
         }
@@ -251,11 +244,9 @@ async function processCourses(index, courseId, groupList, coursePath) {
             const sec = sections[curri];
             const filePathName = `${curri + 1}_${sanitizeTitle(sec.title)}`
             const filePath = path.join(groupPath, `${filePathName}.mp4`);
-            const vttPath = path.join(groupPath, `${filePathName}.vtt`);
             if (fs.existsSync(filePath)) return
 
-            console.log('\nDownloading Video & Subtitles...');
-            if (subtitle) await downloadSubtitle(subtitle.url, vttPath);
+            console.log('\nDownloading Video...');
             await downloadCourse(gdata, filePath, quality);
             console.log(`\n${sec.title} Successfully Downloaded.`);
         } else {
@@ -356,7 +347,7 @@ async function main() {
         });
 
         caption = Object.keys(listCourse).map((key, idxs) => {
-            let cap = `\n\n[ ${key} ]\n`;
+            let cap = `\n\n[ ${idxs + 1}. ${key} ]\n`;
             cap += `${idxs + 1}-0. All this section\n`;
             cap += listCourse[key].map((lecture, idx) => {
                 return `${idxs + 1}-${idx + 1}. ${lecture.title} (${lecture.id})`;
@@ -364,7 +355,15 @@ async function main() {
             return cap;
         }).join('');
 
-        let index = await question(`${caption}\n\nSelect lecture above (e.g., 1-1): `)
+        let index = await question(`${caption}\n\n0. Download all sections\n\nSelect lecture above (e.g., 1-1): `)
+
+        if (index === '0') {
+            const groupKeys = Object.keys(listCourse);
+            for (let i = 0; i < groupKeys.length; i++) {
+                await processCourses(`${i + 1}-0`, course.id, listCourse, course.clean_title)
+            }
+            return;
+        }
 
         const regex = /^(\d+-\d+)$/;
 

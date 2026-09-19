@@ -1,5 +1,5 @@
 {
-  "name": "udemy-course-downloader",
+  "name": "ud",
   "version": "1.0.1",
   "description": "Udemy Course Downloader",
   "main": "src/index.js",
@@ -9,10 +9,6 @@
   "scripts": {
     "test": "node --test"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/ShiroNexo/udemydl.git"
-  },
   "keywords": [
     "udemy",
     "downloader",
@@ -20,7 +16,6 @@
   ],
   "author": "shironexo",
   "license": "MIT",
-  "homepage": "https://github.com/ShiroNexo/udemydl#readme",
   "dependencies": {
     "axios": "^1.7.2"
   }
